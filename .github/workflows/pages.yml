@@ -3,6 +3,8 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "0 5 * * *"
   workflow_dispatch:
 
 permissions:
@@ -23,6 +25,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch releases from TMDB
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: node scripts/fetch-releases.mjs
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
