@@ -78,7 +78,9 @@ async function main() {
 
   await mkdir("assets/data", { recursive: true });
   await writeFile("assets/data/releases.json", JSON.stringify(output, null, 2));
-  console.log(`Wrote assets/data/releases.json (${movieNetflix.length + moviePrime.length + tvNetflix.length + tvPrime.length} items, range ${from} to ${to})`);
+  console.log(`Wrote assets/data/releases.json (range ${from} to ${to}):`);
+  console.log(`  movie/netflix: ${movieNetflix.length}, movie/prime: ${moviePrime.length}`);
+  console.log(`  tv/netflix: ${tvNetflix.length}, tv/prime: ${tvPrime.length}`);
 }
 
 main().catch((err) => {
