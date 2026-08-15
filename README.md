@@ -1,6 +1,6 @@
 # NetPrime
 
-Statische web-app die de nieuwste film- en serie-releases op Netflix en Prime Video toont, van vandaag tot en met 7 dagen later. Films en series staan gescheiden, en per categorie zijn Netflix en Prime Video apart weergegeven.
+Statische web-app die de nieuwste film- en serie-releases op Netflix en Prime Video toont voor de huidige kalendermaand. Films en series staan gescheiden, en per categorie zijn Netflix en Prime Video apart weergegeven.
 
 Live op GitHub Pages: `https://<gebruikersnaam>.github.io/<repo>/`
 
@@ -18,7 +18,7 @@ Live op GitHub Pages: `https://<gebruikersnaam>.github.io/<repo>/`
 
 ## Beperking
 
-TMDB registreert geen exacte "toegevoegd aan Netflix/Prime"-datum. De app filtert daarom op de officiële release-/premièredatum van de titel binnen het venster vandaag t/m +7 dagen, gecombineerd met actuele Netflix/Prime-beschikbaarheid in Nederland. Voor vervolgseizoenen van bestaande series gebruikt TMDB de datum van het allereerste seizoen, dus nieuwe seizoenen van lopende series kunnen ontbreken.
+TMDB registreert geen exacte "toegevoegd aan Netflix/Prime"-datum. De app filtert daarom op de officiële release-/premièredatum van de titel binnen de huidige kalendermaand, gecombineerd met actuele Netflix/Prime-beschikbaarheid in Nederland. Voor vervolgseizoenen van bestaande series gebruikt TMDB de datum van het allereerste seizoen, dus nieuwe seizoenen van lopende series kunnen ontbreken. Een venster van 7 dagen vooruit bleek in de praktijk vrijwel altijd leeg, omdat toekomstige releases doorgaans nog niet als "nu beschikbaar" op een platform staan; een volledige maand levert wél bruikbare resultaten op.
 
 ## Lokaal draaien
 
