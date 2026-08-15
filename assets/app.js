@@ -32,15 +32,17 @@
     apiKeyCancel: $("#apiKeyCancel"),
   };
 
-  function todayISO(offsetDays = 0) {
-    const d = new Date();
-    d.setDate(d.getDate() + offsetDays);
-    return d.toISOString().slice(0, 10);
+  function currentMonthRange() {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
   }
 
-  function formatDisplayDate(iso) {
-    const d = new Date(iso + "T00:00:00");
-    return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
+  function formatMonthLabel() {
+    const now = new Date();
+    const label = now.toLocaleDateString("nl-NL", { month: "long", year: "numeric" });
+    return label.charAt(0).toUpperCase() + label.slice(1);
   }
 
   function formatBadgeDate(iso) {
@@ -81,18 +83,15 @@
   }
 
   function setDateRangeLabel() {
-    const from = todayISO(0);
-    const to = todayISO(7);
-    els.dateRange.textContent = `${formatDisplayDate(from)} – ${formatDisplayDate(to)}`;
+    els.dateRange.textContent = formatMonthLabel();
   }
 
   async function fetchDiscover(mediaType, providerId) {
     const key = getApiKey();
-    const from = todayISO(0);
-    const to = todayISO(7);
+    const { from, to } = currentMonthRange();
     const queryDateField = mediaType === "movie" ? "primary_release_date" : "first_air_date";
     const itemDateField = mediaType === "movie" ? "release_date" : "first_air_date";
-    const sortBy = `${queryDateField}.asc`;
+    const sortBy = `${queryDateField}.desc`;
 
     let results = [];
     for (let page = 1; page <= MAX_PAGES; page++) {
@@ -125,7 +124,7 @@
       .sort((a, b) => {
         const da = a[itemDateField] || "";
         const db = b[itemDateField] || "";
-        return da.localeCompare(db);
+        return db.localeCompare(da);
       });
   }
 
