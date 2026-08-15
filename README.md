@@ -6,15 +6,18 @@ Live op GitHub Pages: `https://<gebruikersnaam>.github.io/<repo>/`
 
 ## Hoe het werkt
 
-- Puur client-side (HTML/CSS/JS), geen backend nodig — geschikt voor GitHub Pages.
-- Databron: de gratis [TMDB API](https://www.themoviedb.org/documentation/api) (`discover/movie` en `discover/tv`, gefilterd op releasedatum + Netflix/Prime Video beschikbaarheid in regio NL).
-- Bij het eerste bezoek vraagt de app om een gratis TMDB API key (v3). Die wordt alleen lokaal opgeslagen in `localStorage` van de browser van de bezoeker — nooit in de code of op een server.
+- De browser laadt alleen statische bestanden (HTML/CSS/JS + een gegenereerd JSON-bestand) — geen API-key of andere geheimen komen ooit in de browser terecht.
+- Databron: de gratis [TMDB API](https://www.themoviedb.org/documentation/api) (`discover/movie` en `discover/tv`, gefilterd op releasedatum binnen de huidige kalendermaand + Netflix/Prime Video beschikbaarheid in regio NL).
+- Bij elke deploy haalt een GitHub Actions workflow (`scripts/fetch-releases.mjs`) deze data server-side op met een TMDB API key uit een **repository secret**, en schrijft het resultaat naar `assets/data/releases.json`. Dat bestand wordt vervolgens gepubliceerd naar GitHub Pages — de key zelf verlaat de Actions-runner nooit.
+- De workflow draait automatisch bij elke push naar `main`, dagelijks om 05:00 UTC (cron), en is ook handmatig te starten via **Actions → Deploy GitHub Pages → Run workflow**.
 
-### Een TMDB API key aanmaken
+### Eenmalige setup: TMDB API key als secret toevoegen
 
 1. Maak een gratis account op [themoviedb.org](https://www.themoviedb.org/signup)
 2. Ga naar **Instellingen → API** en vraag een "API Key (v3 auth)" aan
-3. Plak de key in de app wanneer daarom gevraagd wordt
+3. Ga in deze GitHub-repo naar **Settings → Secrets and variables → Actions → New repository secret**
+4. Naam: `TMDB_API_KEY`, waarde: je TMDB key
+5. De eerstvolgende workflow-run (push, cron, of handmatig gestart) gebruikt automatisch deze key
 
 ## Beperking
 
@@ -22,10 +25,9 @@ TMDB registreert geen exacte "toegevoegd aan Netflix/Prime"-datum. De app filter
 
 ## Lokaal draaien
 
-Geen build-stap nodig. Open `index.html` via een lokale server, bijvoorbeeld:
-
 ```bash
+TMDB_API_KEY=jouw_key node scripts/fetch-releases.mjs   # genereert assets/data/releases.json
 python3 -m http.server 8000
 ```
 
-en ga naar `http://localhost:8000`.
+en ga naar `http://localhost:8000`. Vereist Node.js 18+ (gebruikt de ingebouwde `fetch`).
