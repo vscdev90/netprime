@@ -184,6 +184,10 @@ a { color: var(--accent); }
   display: flex;
   flex-direction: column;
   transition: transform 0.15s ease, border-color 0.15s ease;
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
 }
 
 .card:hover {
@@ -286,3 +290,110 @@ a { color: var(--accent); }
 }
 
 .site-footer a { color: var(--text-dim); text-decoration: underline; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal-overlay[hidden] { display: none; }
+
+.modal {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 440px;
+  width: 100%;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.detail-modal {
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.detail-poster-wrap {
+  aspect-ratio: 2 / 3;
+  max-width: 220px;
+  margin: 0 auto 16px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #0f1320;
+}
+
+.detail-poster-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-poster-wrap img[hidden] { display: none; }
+
+.detail-poster-wrap .poster-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  color: var(--text-dim);
+}
+
+.detail-body h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  padding-right: 28px;
+}
+
+.detail-meta {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.detail-overview {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin: 0 0 18px;
+}
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #1a1400;
+}

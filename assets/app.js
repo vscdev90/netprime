@@ -22,6 +22,14 @@
       "tv-netflix": $("#tv-netflix"),
       "tv-prime": $("#tv-prime"),
     },
+    detailModal: $("#detailModal"),
+    detailClose: $("#detailClose"),
+    detailPoster: $("#detailPoster"),
+    detailPosterPlaceholder: $("#detailPosterPlaceholder"),
+    detailTitle: $("#detailTitle"),
+    detailMeta: $("#detailMeta"),
+    detailOverview: $("#detailOverview"),
+    detailLink: $("#detailLink"),
   };
 
   function formatMonthLabel(isoDate) {
@@ -38,6 +46,40 @@
   function formatUpdatedAt(isoDateTime) {
     const d = new Date(isoDateTime);
     return d.toLocaleString("nl-NL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatFullDate(isoDate) {
+    const d = new Date(isoDate + "T00:00:00Z");
+    return d.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  }
+
+  function openDetailModal(item, mediaType) {
+    els.detailTitle.textContent = item.title || "Onbekende titel";
+
+    const metaParts = [];
+    if (item.date) metaParts.push(formatFullDate(item.date));
+    if (item.rating) metaParts.push(`★ ${item.rating}`);
+    els.detailMeta.textContent = metaParts.join(" · ");
+
+    els.detailOverview.textContent = item.overview || "Geen beschrijving beschikbaar.";
+
+    if (item.posterPath) {
+      els.detailPoster.src = `${IMG_BASE}${item.posterPath}`;
+      els.detailPoster.alt = item.title || "";
+      els.detailPoster.hidden = false;
+      els.detailPosterPlaceholder.hidden = true;
+    } else {
+      els.detailPoster.hidden = true;
+      els.detailPosterPlaceholder.hidden = false;
+      els.detailPosterPlaceholder.textContent = mediaType === "movie" ? "🎬" : "📺";
+    }
+
+    els.detailLink.href = `https://www.themoviedb.org/${mediaType}/${item.id}?language=nl-NL`;
+    els.detailModal.hidden = false;
+  }
+
+  function closeDetailModal() {
+    els.detailModal.hidden = true;
   }
 
   function renderSkeleton(container, count = 6) {
@@ -62,11 +104,10 @@
     container.innerHTML = "";
     const frag = document.createDocumentFragment();
     for (const item of items) {
-      const a = document.createElement("a");
+      const a = document.createElement("button");
+      a.type = "button";
       a.className = "card";
-      a.href = `https://www.themoviedb.org/${mediaType}/${item.id}?language=nl-NL`;
-      a.target = "_blank";
-      a.rel = "noopener";
+      a.addEventListener("click", () => openDetailModal(item, mediaType));
 
       const posterWrap = document.createElement("div");
       posterWrap.className = "poster-wrap";
@@ -153,7 +194,18 @@
     els.refreshBtn.addEventListener("click", () => loadAll());
   }
 
+  function setupDetailModal() {
+    els.detailClose.addEventListener("click", () => closeDetailModal());
+    els.detailModal.addEventListener("click", (e) => {
+      if (e.target === els.detailModal) closeDetailModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !els.detailModal.hidden) closeDetailModal();
+    });
+  }
+
   setupTabs();
   setupRefresh();
+  setupDetailModal();
   loadAll();
 })();

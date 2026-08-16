@@ -55,6 +55,7 @@ async function fetchCategory(mediaType, providerId, from, to) {
       date: item[itemDateField],
       posterPath: item.poster_path || null,
       rating: item.vote_count > 0 ? Number(item.vote_average.toFixed(1)) : null,
+      overview: item.overview || null,
     }));
 }
 
