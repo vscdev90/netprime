@@ -1,14 +1,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
-// v2: bumped after adding oEmbed verification (see fetchTrailerKey) so
-// entries cached under v1 — never checked for actually being embeddable —
-// don't get trusted forever. Using a new filename here is a cheap way to
-// invalidate the old cache without needing to touch the GitHub Actions
-// cache storage directly: the actions/cache restore step still succeeds
-// (it restores the whole .cache/ dir), but this file just won't exist in
-// it yet, so loadTrailerCache() starts fresh and every trailer gets
-// re-verified once.
-const CACHE_PATH = ".cache/tmdb-details-v2.json";
+// Bump this filename whenever the trailer verification rules change, so
+// entries accepted under the old, weaker rules don't get trusted forever
+// (the cache lookup short-circuits before verification ever runs). It's a
+// cheap way to invalidate without touching GitHub Actions cache storage:
+// the restore step still succeeds (it restores the whole .cache/ dir), the
+// new filename just isn't in it yet, so every trailer is re-verified once.
+//   v2: added oEmbed existence check
+//   v3: added embed-playability check (oEmbed alone returns 200 for public
+//       videos that still can't be embedded, so v2 entries are unreliable)
+const CACHE_PATH = ".cache/tmdb-details-v3.json";
 
 const REGION = "NL";
 const LANGUAGE = "nl-NL";
@@ -115,20 +116,33 @@ async function saveTrailerCache() {
   await writeFile(CACHE_PATH, JSON.stringify(trailerCache));
 }
 
-// TMDB's video listing includes entries that don't actually play — removed,
-// private, or plain mismatched videos (a real-world example: TMDB's only
-// "trailer" for a stand-up special turned out not to correspond to a real
-// published trailer at all). YouTube's oEmbed endpoint reports whether a
-// video genuinely exists and can be embedded without needing an API key;
-// it 404s/401s for deleted, private, or embedding-disabled videos. Checking
-// this at build time means a broken match just gets skipped (falls through
-// to the next candidate, or no trailer at all) instead of showing a button
-// that fails for every visitor who clicks it.
+// TMDB's video listing includes entries that don't actually play in an
+// embed — removed, private, region-locked, or with embedding disabled by
+// the uploader. Verifying at build time means a broken match gets skipped
+// (falling through to the next candidate, or to no trailer at all) rather
+// than showing a button that fails for every visitor who clicks it.
+//
+// Two checks are needed, because they catch different things:
+//   1. oEmbed 404s/401s for deleted and private videos — but returns 200
+//      for any public video, INCLUDING ones that can't be embedded. On its
+//      own it therefore misses the most common real-world case.
+//   2. The embed page itself reports the actual embed playability, which
+//      is the thing we care about.
+// Markers absent (e.g. YouTube changes their markup) is treated as
+// playable on purpose: the failure mode should be "shows a button that
+// might not work", never "silently hides working trailers".
 async function isEmbeddable(key) {
   try {
-    const url = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${key}`)}&format=json`;
-    const res = await throttledFetch(url);
-    return res.ok;
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${key}`)}&format=json`;
+    const oembedRes = await throttledFetch(oembedUrl);
+    if (!oembedRes.ok) return false;
+
+    const embedRes = await throttledFetch(`https://www.youtube.com/embed/${key}`);
+    if (!embedRes.ok) return false;
+    const html = await embedRes.text();
+    if (/"playableInEmbed"\s*:\s*false/.test(html)) return false;
+    if (/"status"\s*:\s*"(UNPLAYABLE|ERROR|LOGIN_REQUIRED)"/.test(html)) return false;
+    return true;
   } catch {
     return false;
   }
