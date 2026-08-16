@@ -179,6 +179,7 @@
         btn.classList.add("active");
         Object.values(els.panels).forEach((p) => p.classList.remove("active"));
         els.panels[btn.dataset.tab].classList.add("active");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       });
     });
   }
