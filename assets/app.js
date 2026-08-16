@@ -29,8 +29,12 @@
     grids,
     detailModal: $("#detailModal"),
     detailClose: $("#detailClose"),
+    detailPosterWrap: $("#detailPosterWrap"),
     detailPoster: $("#detailPoster"),
     detailPosterPlaceholder: $("#detailPosterPlaceholder"),
+    detailTrailerWrap: $("#detailTrailerWrap"),
+    detailTrailerFrame: $("#detailTrailerFrame"),
+    detailTrailerBtn: $("#detailTrailerBtn"),
     detailTitle: $("#detailTitle"),
     detailMeta: $("#detailMeta"),
     detailOverview: $("#detailOverview"),
@@ -52,6 +56,13 @@
     return d.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
   }
 
+  function showTrailer(trailerKey) {
+    els.detailTrailerFrame.src = `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1`;
+    els.detailTrailerWrap.hidden = false;
+    els.detailPosterWrap.hidden = true;
+    els.detailTrailerBtn.hidden = true;
+  }
+
   function openDetailModal(item, mediaType) {
     els.detailTitle.textContent = item.title || "Onbekende titel";
 
@@ -61,6 +72,10 @@
     els.detailMeta.textContent = metaParts.join(" · ");
 
     els.detailOverview.textContent = item.overview || "Geen beschrijving beschikbaar.";
+
+    els.detailTrailerFrame.src = "about:blank";
+    els.detailTrailerWrap.hidden = true;
+    els.detailPosterWrap.hidden = false;
 
     if (item.posterPath) {
       els.detailPoster.src = `${IMG_BASE}${item.posterPath}`;
@@ -73,12 +88,21 @@
       els.detailPosterPlaceholder.textContent = mediaType === "movie" ? "🎬" : "📺";
     }
 
+    if (item.trailerKey) {
+      els.detailTrailerBtn.hidden = false;
+      els.detailTrailerBtn.onclick = () => showTrailer(item.trailerKey);
+    } else {
+      els.detailTrailerBtn.hidden = true;
+      els.detailTrailerBtn.onclick = null;
+    }
+
     els.detailLink.href = `https://www.themoviedb.org/${mediaType}/${item.id}?language=nl-NL`;
     els.detailModal.hidden = false;
   }
 
   function closeDetailModal() {
     els.detailModal.hidden = true;
+    els.detailTrailerFrame.src = "about:blank";
   }
 
   function renderSkeleton(container, count = 6) {
