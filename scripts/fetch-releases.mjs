@@ -55,8 +55,28 @@ async function fetchCategory(mediaType, providerId, today) {
     }));
 }
 
+async function logProviderDiagnostics() {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/watch/providers/movie?api_key=${API_KEY}&language=${LANGUAGE}&watch_region=${REGION}`
+  );
+  if (!res.ok) {
+    console.log(`DIAGNOSTIC: provider list request failed: ${res.status}`);
+    return;
+  }
+  const data = await res.json();
+  const matches = (data.results || []).filter((p) =>
+    /prime|amazon|netflix/i.test(p.provider_name)
+  );
+  console.log(`DIAGNOSTIC: watch providers for ${REGION} matching prime/amazon/netflix:`);
+  for (const p of matches) {
+    console.log(`  id=${p.provider_id} name="${p.provider_name}"`);
+  }
+}
+
 async function main() {
   const today = todayISO();
+
+  await logProviderDiagnostics();
 
   const [movieNetflix, moviePrime, tvNetflix, tvPrime] = await Promise.all([
     fetchCategory("movie", PROVIDERS.netflix, today),
