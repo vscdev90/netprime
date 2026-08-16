@@ -3,7 +3,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 const REGION = "NL";
 const LANGUAGE = "nl-NL";
 const MAX_PAGES = 2;
-const PROVIDERS = { netflix: 8, prime: 9 };
+// Amazon Prime Video is id 9 in some TMDB regions, but 119 in NL
+// (confirmed via GET /3/watch/providers/movie?watch_region=NL) — id 9
+// isn't linked to NL at all, which silently returned zero results.
+const PROVIDERS = { netflix: 8, prime: 119 };
 const API_KEY = process.env.TMDB_API_KEY;
 
 if (!API_KEY) {
@@ -55,28 +58,8 @@ async function fetchCategory(mediaType, providerId, today) {
     }));
 }
 
-async function logProviderDiagnostics() {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/watch/providers/movie?api_key=${API_KEY}&language=${LANGUAGE}&watch_region=${REGION}`
-  );
-  if (!res.ok) {
-    console.log(`DIAGNOSTIC: provider list request failed: ${res.status}`);
-    return;
-  }
-  const data = await res.json();
-  const matches = (data.results || []).filter((p) =>
-    /prime|amazon|netflix/i.test(p.provider_name)
-  );
-  console.log(`DIAGNOSTIC: watch providers for ${REGION} matching prime/amazon/netflix:`);
-  for (const p of matches) {
-    console.log(`  id=${p.provider_id} name="${p.provider_name}"`);
-  }
-}
-
 async function main() {
   const today = todayISO();
-
-  await logProviderDiagnostics();
 
   const [movieNetflix, moviePrime, tvNetflix, tvPrime] = await Promise.all([
     fetchCategory("movie", PROVIDERS.netflix, today),
