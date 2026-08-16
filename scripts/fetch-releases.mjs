@@ -1,4 +1,6 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+
+const CACHE_PATH = ".cache/tmdb-details.json";
 
 const REGION = "NL";
 const LANGUAGE = "nl-NL";
@@ -83,10 +85,35 @@ function toItem(item, mediaType, date) {
   };
 }
 
+// Persisted across workflow runs via actions/cache (see pages.yml), keyed by
+// "movieType:id". Trailer keys are safe to cache indefinitely — a trailer,
+// once published, doesn't change. Season air-dates are deliberately NOT
+// cached here even though they're fetched just as often: caching them risks
+// serving a stale date once a show gets an actual new season, which would
+// silently reintroduce the exact "new season sorts as if it's years old"
+// bug this app was built to avoid.
+let trailerCache = {};
+
+async function loadTrailerCache() {
+  try {
+    trailerCache = JSON.parse(await readFile(CACHE_PATH, "utf8"));
+  } catch {
+    trailerCache = {};
+  }
+}
+
+async function saveTrailerCache() {
+  await mkdir(".cache", { recursive: true });
+  await writeFile(CACHE_PATH, JSON.stringify(trailerCache));
+}
+
 // Trailers are almost always only tagged as English on TMDB even for
 // non-English titles, so this deliberately doesn't pass a language
 // filter — doing so would silently return zero results most of the time.
 async function fetchTrailerKey(mediaType, id) {
+  const cacheKey = `${mediaType}:${id}`;
+  if (cacheKey in trailerCache) return trailerCache[cacheKey];
+
   const res = await tmdbFetch(`https://api.themoviedb.org/3/${mediaType}/${id}/videos?api_key=${API_KEY}`);
   if (!res.ok) return null;
   const data = await res.json();
@@ -96,7 +123,11 @@ async function fetchTrailerKey(mediaType, id) {
     videos.find((v) => v.type === "Trailer") ||
     videos.find((v) => v.type === "Teaser") ||
     videos[0];
-  return pick ? pick.key : null;
+  const key = pick ? pick.key : null;
+  // Only cache a hit — a title without a trailer yet might get one added
+  // later (e.g. an upcoming release), so keep retrying those.
+  if (key) trailerCache[cacheKey] = key;
+  return key;
 }
 
 async function enrichWithTrailers(items, mediaType) {
@@ -197,12 +228,18 @@ async function main() {
   const today = todayISO();
   const platformKeys = Object.keys(PROVIDERS);
 
+  await loadTrailerCache();
+  const cachedCountBefore = Object.keys(trailerCache).length;
+
   const movieResults = await Promise.all(
     platformKeys.map((key) => fetchMovies(PROVIDERS[key].id, today))
   );
   const tvResults = await Promise.all(
     platformKeys.map((key) => fetchTv(PROVIDERS[key].id, today))
   );
+
+  await saveTrailerCache();
+  console.log(`Trailer cache: ${cachedCountBefore} entries loaded, ${Object.keys(trailerCache).length} entries saved.`);
 
   const movie = {};
   const tv = {};
