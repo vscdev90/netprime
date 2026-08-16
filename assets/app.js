@@ -33,7 +33,9 @@
     detailPoster: $("#detailPoster"),
     detailPosterPlaceholder: $("#detailPosterPlaceholder"),
     detailTrailerWrap: $("#detailTrailerWrap"),
-    detailTrailerFrame: $("#detailTrailerFrame"),
+    detailTrailerPlayer: $("#detailTrailerPlayer"),
+    detailTrailerError: $("#detailTrailerError"),
+    detailTrailerErrorLink: $("#detailTrailerErrorLink"),
     detailTrailerBtn: $("#detailTrailerBtn"),
     detailTitle: $("#detailTitle"),
     detailMeta: $("#detailMeta"),
@@ -56,11 +58,59 @@
     return d.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
   }
 
-  function showTrailer(trailerKey) {
-    els.detailTrailerFrame.src = `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1`;
+  // YouTube's plain iframe embed fails silently for videos with embedding
+  // disabled by the owner (common for official trailers) — the iframe loads
+  // fine, only YouTube's own player inside it shows an error. Using the
+  // IFrame Player API instead lets us detect that via onError and fall back
+  // to a clear message + a direct YouTube link.
+  let youtubeApiPromise = null;
+  function loadYouTubeApi() {
+    if (youtubeApiPromise) return youtubeApiPromise;
+    youtubeApiPromise = new Promise((resolve) => {
+      if (window.YT && window.YT.Player) {
+        resolve(window.YT);
+        return;
+      }
+      window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+      const script = document.createElement("script");
+      script.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(script);
+    });
+    return youtubeApiPromise;
+  }
+
+  let currentPlayer = null;
+
+  function destroyTrailerPlayer() {
+    if (currentPlayer) {
+      currentPlayer.destroy();
+      currentPlayer = null;
+    }
+    els.detailTrailerPlayer.innerHTML = "";
+  }
+
+  function showTrailerError(trailerKey) {
+    destroyTrailerPlayer();
+    els.detailTrailerErrorLink.href = `https://www.youtube.com/watch?v=${trailerKey}`;
+    els.detailTrailerError.hidden = false;
+  }
+
+  async function showTrailer(trailerKey) {
+    els.detailTrailerError.hidden = true;
     els.detailTrailerWrap.hidden = false;
     els.detailPosterWrap.hidden = true;
     els.detailTrailerBtn.hidden = true;
+
+    const YT = await loadYouTubeApi();
+    currentPlayer = new YT.Player(els.detailTrailerPlayer, {
+      videoId: trailerKey,
+      width: "100%",
+      height: "100%",
+      playerVars: { autoplay: 1, rel: 0 },
+      events: {
+        onError: () => showTrailerError(trailerKey),
+      },
+    });
   }
 
   function openDetailModal(item, mediaType) {
@@ -73,7 +123,8 @@
 
     els.detailOverview.textContent = item.overview || "Geen beschrijving beschikbaar.";
 
-    els.detailTrailerFrame.src = "about:blank";
+    destroyTrailerPlayer();
+    els.detailTrailerError.hidden = true;
     els.detailTrailerWrap.hidden = true;
     els.detailPosterWrap.hidden = false;
 
@@ -102,7 +153,7 @@
 
   function closeDetailModal() {
     els.detailModal.hidden = true;
-    els.detailTrailerFrame.src = "about:blank";
+    destroyTrailerPlayer();
   }
 
   function renderSkeleton(container, count = 6) {

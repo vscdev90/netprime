@@ -95,7 +95,11 @@
       <div id="detailPosterPlaceholder" class="poster-placeholder" hidden></div>
     </div>
     <div class="detail-trailer-wrap" id="detailTrailerWrap" hidden>
-      <iframe id="detailTrailerFrame" title="Trailer" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      <div id="detailTrailerPlayer"></div>
+      <div class="detail-trailer-error" id="detailTrailerError" hidden>
+        <p>Trailer niet beschikbaar.</p>
+        <a id="detailTrailerErrorLink" target="_blank" rel="noopener">Bekijk op YouTube ↗</a>
+      </div>
     </div>
     <div class="detail-body">
       <h2 id="detailTitle"></h2>
