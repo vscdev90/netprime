@@ -1,6 +1,14 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
-const CACHE_PATH = ".cache/tmdb-details.json";
+// v2: bumped after adding oEmbed verification (see fetchTrailerKey) so
+// entries cached under v1 — never checked for actually being embeddable —
+// don't get trusted forever. Using a new filename here is a cheap way to
+// invalidate the old cache without needing to touch the GitHub Actions
+// cache storage directly: the actions/cache restore step still succeeds
+// (it restores the whole .cache/ dir), but this file just won't exist in
+// it yet, so loadTrailerCache() starts fresh and every trailer gets
+// re-verified once.
+const CACHE_PATH = ".cache/tmdb-details-v2.json";
 
 const REGION = "NL";
 const LANGUAGE = "nl-NL";
