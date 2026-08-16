@@ -66,7 +66,7 @@
   let youtubeApiPromise = null;
   function loadYouTubeApi() {
     if (youtubeApiPromise) return youtubeApiPromise;
-    youtubeApiPromise = new Promise((resolve) => {
+    youtubeApiPromise = new Promise((resolve, reject) => {
       if (window.YT && window.YT.Player) {
         resolve(window.YT);
         return;
@@ -74,7 +74,13 @@
       window.onYouTubeIframeAPIReady = () => resolve(window.YT);
       const script = document.createElement("script");
       script.src = "https://www.youtube.com/iframe_api";
+      script.onerror = () => reject(new Error("YouTube API script failed to load"));
       document.head.appendChild(script);
+    }).catch((err) => {
+      // Reset so a later attempt (e.g. transient network blip) can retry,
+      // instead of every future trailer click failing instantly forever.
+      youtubeApiPromise = null;
+      throw err;
     });
     return youtubeApiPromise;
   }
@@ -95,22 +101,33 @@
     els.detailTrailerError.hidden = false;
   }
 
+  function timeout(ms) {
+    return new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms));
+  }
+
   async function showTrailer(trailerKey) {
     els.detailTrailerError.hidden = true;
     els.detailTrailerWrap.hidden = false;
     els.detailPosterWrap.hidden = true;
     els.detailTrailerBtn.hidden = true;
 
-    const YT = await loadYouTubeApi();
-    currentPlayer = new YT.Player(els.detailTrailerPlayer, {
-      videoId: trailerKey,
-      width: "100%",
-      height: "100%",
-      playerVars: { autoplay: 1, rel: 0 },
-      events: {
-        onError: () => showTrailerError(trailerKey),
-      },
-    });
+    try {
+      // If the YouTube API script is blocked (ad blocker, privacy browser,
+      // flaky network) it can hang forever without ever erroring — without
+      // this timeout the trailer box would just sit empty with no feedback.
+      const YT = await Promise.race([loadYouTubeApi(), timeout(6000)]);
+      currentPlayer = new YT.Player(els.detailTrailerPlayer, {
+        videoId: trailerKey,
+        width: "100%",
+        height: "100%",
+        playerVars: { autoplay: 1, rel: 0 },
+        events: {
+          onError: () => showTrailerError(trailerKey),
+        },
+      });
+    } catch {
+      showTrailerError(trailerKey);
+    }
   }
 
   function openDetailModal(item, mediaType) {
