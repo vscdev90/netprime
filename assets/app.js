@@ -116,15 +116,26 @@
       // flaky network) it can hang forever without ever erroring — without
       // this timeout the trailer box would just sit empty with no feedback.
       const YT = await Promise.race([loadYouTubeApi(), timeout(6000)]);
-      currentPlayer = new YT.Player(els.detailTrailerPlayer, {
-        videoId: trailerKey,
-        width: "100%",
-        height: "100%",
-        playerVars: { autoplay: 1, rel: 0 },
-        events: {
-          onError: () => showTrailerError(trailerKey),
-        },
-      });
+
+      // Some videos (e.g. removed/region-locked ones) leave the player stuck
+      // with neither onReady nor onError ever firing, instead of a clean
+      // error — the API load succeeds but this specific video never does.
+      // Wait for either event, and time out the same way if neither comes.
+      await Promise.race([
+        new Promise((resolve, reject) => {
+          currentPlayer = new YT.Player(els.detailTrailerPlayer, {
+            videoId: trailerKey,
+            width: "100%",
+            height: "100%",
+            playerVars: { autoplay: 1, rel: 0 },
+            events: {
+              onReady: () => resolve(),
+              onError: () => reject(new Error("player-error")),
+            },
+          });
+        }),
+        timeout(8000),
+      ]);
     } catch {
       showTrailerError(trailerKey);
     }
