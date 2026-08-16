@@ -29,10 +29,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Restore TMDB trailer cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: tmdb-trailer-cache-${{ github.run_id }}
+          restore-keys: |
+            tmdb-trailer-cache-
       - name: Fetch releases from TMDB
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: node scripts/fetch-releases.mjs
+      - name: Save TMDB trailer cache
+        uses: actions/cache/save@v4
+        with:
+          path: .cache
+          key: tmdb-trailer-cache-${{ github.run_id }}
       - name: Cache-bust static assets
         run: |
           SHA_SHORT="${GITHUB_SHA::7}"
