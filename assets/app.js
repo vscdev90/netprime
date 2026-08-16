@@ -106,12 +106,15 @@
   }
 
   async function showTrailer(trailerKey) {
-    els.detailTrailerError.hidden = true;
-    els.detailTrailerWrap.hidden = false;
-    els.detailPosterWrap.hidden = true;
-    els.detailTrailerBtn.hidden = true;
-
+    // The whole body is wrapped, including the initial DOM updates: if
+    // anything here throws for a reason we haven't anticipated, the visible
+    // result must still be the fallback message, never a silent no-op.
     try {
+      els.detailTrailerError.hidden = true;
+      els.detailTrailerWrap.hidden = false;
+      els.detailPosterWrap.hidden = true;
+      els.detailTrailerBtn.hidden = true;
+
       // If the YouTube API script is blocked (ad blocker, privacy browser,
       // flaky network) it can hang forever without ever erroring — without
       // this timeout the trailer box would just sit empty with no feedback.
