@@ -201,6 +201,7 @@
         els.platformBtns.forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         applyPlatformFilter(btn.dataset.platform);
+        window.scrollTo({ top: 0, behavior: "smooth" });
       });
     });
   }
