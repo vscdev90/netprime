@@ -388,6 +388,38 @@ a { color: var(--accent); }
   color: var(--text-dim);
 }
 
+.detail-trailer-wrap {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  margin: 0 0 16px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+
+.detail-trailer-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-trailer {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn-trailer:hover {
+  border-color: var(--accent);
+}
+
 .detail-body h2 {
   margin: 0 0 6px;
   font-size: 20px;

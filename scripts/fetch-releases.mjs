@@ -37,6 +37,28 @@ function toItem(item, mediaType, date) {
   };
 }
 
+// Trailers are almost always only tagged as English on TMDB even for
+// non-English titles, so this deliberately doesn't pass a language
+// filter — doing so would silently return zero results most of the time.
+async function fetchTrailerKey(mediaType, id) {
+  const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}/videos?api_key=${API_KEY}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const videos = (data.results || []).filter((v) => v.site === "YouTube");
+  const pick =
+    videos.find((v) => v.type === "Trailer" && v.official) ||
+    videos.find((v) => v.type === "Trailer") ||
+    videos.find((v) => v.type === "Teaser") ||
+    videos[0];
+  return pick ? pick.key : null;
+}
+
+async function enrichWithTrailers(items, mediaType) {
+  return Promise.all(
+    items.map(async (item) => ({ ...item, trailerKey: await fetchTrailerKey(mediaType, item.id) }))
+  );
+}
+
 async function fetchMovies(providerId, today) {
   let results = [];
   for (let page = 1; page <= MAX_PAGES; page++) {
@@ -61,11 +83,13 @@ async function fetchMovies(providerId, today) {
     if (page >= (data.total_pages || 1)) break;
   }
 
-  return results
+  const items = results
     .filter((item) => Boolean(item.release_date))
     .sort((a, b) => b.release_date.localeCompare(a.release_date))
     .map((item) => toItem(item, "movie", item.release_date))
     .slice(0, RESULT_CAP);
+
+  return enrichWithTrailers(items, "movie");
 }
 
 // TMDB's discover/tv only exposes a show's first-ever season premiere
@@ -115,10 +139,12 @@ async function fetchTv(providerId, today) {
     })
   );
 
-  return withDates
+  const items = withDates
     .filter(Boolean)
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, RESULT_CAP);
+
+  return enrichWithTrailers(items, "tv");
 }
 
 async function main() {
