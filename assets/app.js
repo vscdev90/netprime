@@ -11,6 +11,8 @@
     updatedAt: $("#updatedAt"),
     updatedAtBase: $("#updatedAt").textContent,
     tabs: document.querySelectorAll(".tab-btn"),
+    platformBtns: document.querySelectorAll(".platform-btn"),
+    columns: document.querySelectorAll(".columns"),
     panels: {
       movie: $("#panel-movie"),
       tv: $("#panel-tv"),
@@ -185,6 +187,24 @@
     els.refreshBtn.addEventListener("click", () => loadAll());
   }
 
+  function applyPlatformFilter(platform) {
+    els.columns.forEach((columns) => {
+      columns.classList.toggle("single-col", platform !== "all");
+      columns.querySelector(".col-netflix").classList.toggle("platform-hidden", platform === "prime");
+      columns.querySelector(".col-prime").classList.toggle("platform-hidden", platform === "netflix");
+    });
+  }
+
+  function setupPlatformFilter() {
+    els.platformBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        els.platformBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        applyPlatformFilter(btn.dataset.platform);
+      });
+    });
+  }
+
   function setupDetailModal() {
     els.detailClose.addEventListener("click", () => closeDetailModal());
     els.detailModal.addEventListener("click", (e) => {
@@ -198,5 +218,6 @@
   setupTabs();
   setupRefresh();
   setupDetailModal();
+  setupPlatformFilter();
   loadAll();
 })();
