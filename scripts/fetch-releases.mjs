@@ -26,6 +26,52 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// All TMDB calls go through this: a global concurrency cap plus retry-on-429
+// with backoff. Between the per-platform discover calls and the per-item
+// season/trailer lookups, this script can fan out to hundreds of requests —
+// firing them all at once reliably triggers TMDB's rate limit.
+const MAX_CONCURRENT = 6;
+let activeRequests = 0;
+const waitQueue = [];
+
+function acquireSlot() {
+  return new Promise((resolve) => {
+    if (activeRequests < MAX_CONCURRENT) {
+      activeRequests++;
+      resolve();
+    } else {
+      waitQueue.push(resolve);
+    }
+  });
+}
+
+function releaseSlot() {
+  activeRequests--;
+  const next = waitQueue.shift();
+  if (next) {
+    activeRequests++;
+    next();
+  }
+}
+
+async function tmdbFetch(url, retries = 5) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    await acquireSlot();
+    try {
+      const res = await fetch(url);
+      if (res.status === 429) {
+        const retryAfter = Number(res.headers.get("retry-after")) || 1;
+        await new Promise((r) => setTimeout(r, (retryAfter + attempt) * 1000));
+        continue;
+      }
+      return res;
+    } finally {
+      releaseSlot();
+    }
+  }
+  throw new Error(`TMDB request rate-limited after ${retries} retries: ${url}`);
+}
+
 function toItem(item, mediaType, date) {
   return {
     id: item.id,
@@ -41,7 +87,7 @@ function toItem(item, mediaType, date) {
 // non-English titles, so this deliberately doesn't pass a language
 // filter — doing so would silently return zero results most of the time.
 async function fetchTrailerKey(mediaType, id) {
-  const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}/videos?api_key=${API_KEY}`);
+  const res = await tmdbFetch(`https://api.themoviedb.org/3/${mediaType}/${id}/videos?api_key=${API_KEY}`);
   if (!res.ok) return null;
   const data = await res.json();
   const videos = (data.results || []).filter((v) => v.site === "YouTube");
@@ -74,7 +120,7 @@ async function fetchMovies(providerId, today) {
       page: String(page),
       "primary_release_date.lte": today,
     });
-    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${params.toString()}`);
+    const res = await tmdbFetch(`https://api.themoviedb.org/3/discover/movie?${params.toString()}`);
     if (!res.ok) {
       throw new Error(`TMDB request failed (movie, provider ${providerId}, page ${page}): ${res.status} ${await res.text()}`);
     }
@@ -98,7 +144,7 @@ async function fetchMovies(providerId, today) {
 // by the actual newest content, fetch each candidate's season list and
 // use the most recent already-aired season date instead.
 async function fetchLatestSeasonDate(tvId, today) {
-  const res = await fetch(`https://api.themoviedb.org/3/tv/${tvId}?api_key=${API_KEY}&language=${LANGUAGE}`);
+  const res = await tmdbFetch(`https://api.themoviedb.org/3/tv/${tvId}?api_key=${API_KEY}&language=${LANGUAGE}`);
   if (!res.ok) return null;
   const data = await res.json();
   const dates = (data.seasons || [])
@@ -122,7 +168,7 @@ async function fetchTv(providerId, today) {
       page: String(page),
       "first_air_date.lte": today,
     });
-    const res = await fetch(`https://api.themoviedb.org/3/discover/tv?${params.toString()}`);
+    const res = await tmdbFetch(`https://api.themoviedb.org/3/discover/tv?${params.toString()}`);
     if (!res.ok) {
       throw new Error(`TMDB request failed (tv, provider ${providerId}, page ${page}): ${res.status} ${await res.text()}`);
     }
