@@ -7,7 +7,6 @@
   const $ = (sel) => document.querySelector(sel);
 
   const els = {
-    dateRange: $("#dateRange"),
     refreshBtn: $("#refreshBtn"),
     updatedAt: $("#updatedAt"),
     updatedAtBase: $("#updatedAt").textContent,
@@ -31,12 +30,6 @@
     detailOverview: $("#detailOverview"),
     detailLink: $("#detailLink"),
   };
-
-  function formatMonthLabel(isoDate) {
-    const d = new Date(isoDate + "T00:00:00Z");
-    const label = d.toLocaleDateString("nl-NL", { month: "long", year: "numeric", timeZone: "UTC" });
-    return label.charAt(0).toUpperCase() + label.slice(1);
-  }
 
   function formatBadgeDate(isoDate) {
     const d = new Date(isoDate + "T00:00:00Z");
@@ -98,7 +91,7 @@
 
   function renderItems(container, items, mediaType) {
     if (!items.length) {
-      renderState(container, "Geen releases gevonden deze maand.");
+      renderState(container, "Geen titels gevonden voor dit platform.");
       return;
     }
     container.innerHTML = "";
@@ -166,8 +159,6 @@
       Object.values(els.grids).forEach((container) => renderState(container, message, true));
       return;
     }
-
-    els.dateRange.textContent = formatMonthLabel(data.range.from);
 
     renderItems(els.grids["movie-netflix"], data.movie.netflix, "movie");
     renderItems(els.grids["movie-prime"], data.movie.prime, "movie");
