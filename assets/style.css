@@ -117,6 +117,35 @@ a { color: var(--accent); }
   border-bottom-color: var(--accent);
 }
 
+.platform-filter {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.platform-btn {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.platform-btn:hover {
+  color: var(--text);
+}
+
+.platform-btn.active {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
 #app {
   max-width: 1200px;
   margin: 0 auto;
@@ -136,6 +165,10 @@ a { color: var(--accent); }
 @media (max-width: 780px) {
   .columns { grid-template-columns: 1fr; }
 }
+
+.columns.single-col { grid-template-columns: 1fr; }
+
+.col.platform-hidden { display: none; }
 
 .col h2 {
   display: flex;
