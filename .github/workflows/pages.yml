@@ -45,6 +45,12 @@ jobs:
         with:
           path: .cache
           key: tmdb-trailer-cache-${{ github.run_id }}
+      # upload-pages-artifact packages the whole working directory and only
+      # excludes .git/.github — .gitignore doesn't apply — so the build-time
+      # cache would otherwise be published as part of the site. Removing it
+      # after the cache has been saved keeps it out of the deployed output.
+      - name: Remove build-time cache from published output
+        run: rm -rf .cache
       - name: Cache-bust static assets
         run: |
           SHA_SHORT="${GITHUB_SHA::7}"
