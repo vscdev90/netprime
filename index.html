@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NetPrime — Nieuwste releases</title>
-<meta name="description" content="Nieuwste film- en serie-releases op Netflix en Prime Video, deze maand.">
+<meta name="description" content="Nieuwste film- en serie-releases op Netflix, Prime Video, HBO Max en SkyShowtime.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -16,7 +16,7 @@
       <span class="brand-mark">🎬</span>
       <div>
         <h1>NetPrime</h1>
-        <p class="tagline">Nieuwste releases op Netflix &amp; Prime Video</p>
+        <p class="tagline">Nieuwste releases op Netflix, Prime Video, HBO Max &amp; SkyShowtime</p>
       </div>
     </div>
     <div class="topbar-actions">
@@ -31,32 +31,50 @@
     <button class="platform-btn active" data-platform="all">Alle</button>
     <button class="platform-btn" data-platform="netflix">Netflix</button>
     <button class="platform-btn" data-platform="prime">Prime Video</button>
+    <button class="platform-btn" data-platform="hbomax">HBO Max</button>
+    <button class="platform-btn" data-platform="skyshowtime">SkyShowtime</button>
   </nav>
 </header>
 
 <main id="app">
   <section id="panel-movie" class="panel active">
     <div class="columns">
-      <div class="col col-netflix">
+      <div class="col col-netflix" data-platform="netflix">
         <h2><span class="dot dot-netflix"></span>Netflix</h2>
         <div id="movie-netflix" class="grid" aria-live="polite"></div>
       </div>
-      <div class="col col-prime">
+      <div class="col col-prime" data-platform="prime">
         <h2><span class="dot dot-prime"></span>Prime Video</h2>
         <div id="movie-prime" class="grid" aria-live="polite"></div>
+      </div>
+      <div class="col col-hbomax" data-platform="hbomax">
+        <h2><span class="dot dot-hbomax"></span>HBO Max</h2>
+        <div id="movie-hbomax" class="grid" aria-live="polite"></div>
+      </div>
+      <div class="col col-skyshowtime" data-platform="skyshowtime">
+        <h2><span class="dot dot-skyshowtime"></span>SkyShowtime</h2>
+        <div id="movie-skyshowtime" class="grid" aria-live="polite"></div>
       </div>
     </div>
   </section>
 
   <section id="panel-tv" class="panel">
     <div class="columns">
-      <div class="col col-netflix">
+      <div class="col col-netflix" data-platform="netflix">
         <h2><span class="dot dot-netflix"></span>Netflix</h2>
         <div id="tv-netflix" class="grid" aria-live="polite"></div>
       </div>
-      <div class="col col-prime">
+      <div class="col col-prime" data-platform="prime">
         <h2><span class="dot dot-prime"></span>Prime Video</h2>
         <div id="tv-prime" class="grid" aria-live="polite"></div>
+      </div>
+      <div class="col col-hbomax" data-platform="hbomax">
+        <h2><span class="dot dot-hbomax"></span>HBO Max</h2>
+        <div id="tv-hbomax" class="grid" aria-live="polite"></div>
+      </div>
+      <div class="col col-skyshowtime" data-platform="skyshowtime">
+        <h2><span class="dot dot-skyshowtime"></span>SkyShowtime</h2>
+        <div id="tv-skyshowtime" class="grid" aria-live="polite"></div>
       </div>
     </div>
   </section>

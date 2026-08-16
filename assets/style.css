@@ -7,6 +7,8 @@
   --text-dim: #9aa2b8;
   --netflix: #e50914;
   --prime: #00a8e1;
+  --hbomax: #a855f7;
+  --skyshowtime: #fb923c;
   --accent: #ffb703;
   --radius: 12px;
   color-scheme: dark;
@@ -122,6 +124,7 @@ a { color: var(--accent); }
   margin: 0 auto;
   padding: 0 20px 12px;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -158,12 +161,8 @@ a { color: var(--accent); }
 
 .columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
-}
-
-@media (max-width: 780px) {
-  .columns { grid-template-columns: 1fr; }
 }
 
 .columns.single-col { grid-template-columns: 1fr; }
@@ -187,9 +186,13 @@ a { color: var(--accent); }
 
 .dot-netflix { background: var(--netflix); }
 .dot-prime { background: var(--prime); }
+.dot-hbomax { background: var(--hbomax); }
+.dot-skyshowtime { background: var(--skyshowtime); }
 
 .col-netflix h2 { color: var(--netflix); }
 .col-prime h2 { color: var(--prime); }
+.col-hbomax h2 { color: var(--hbomax); }
+.col-skyshowtime h2 { color: var(--skyshowtime); }
 
 .grid {
   display: grid;

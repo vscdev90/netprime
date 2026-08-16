@@ -3,8 +3,17 @@
 
   const DATA_URL = "assets/data/releases.json";
   const IMG_BASE = "https://image.tmdb.org/t/p/w300";
+  const PLATFORMS = ["netflix", "prime", "hbomax", "skyshowtime"];
+  const MEDIA_TYPES = ["movie", "tv"];
 
   const $ = (sel) => document.querySelector(sel);
+
+  const grids = {};
+  MEDIA_TYPES.forEach((mediaType) => {
+    PLATFORMS.forEach((platform) => {
+      grids[`${mediaType}-${platform}`] = $(`#${mediaType}-${platform}`);
+    });
+  });
 
   const els = {
     refreshBtn: $("#refreshBtn"),
@@ -17,12 +26,7 @@
       movie: $("#panel-movie"),
       tv: $("#panel-tv"),
     },
-    grids: {
-      "movie-netflix": $("#movie-netflix"),
-      "movie-prime": $("#movie-prime"),
-      "tv-netflix": $("#tv-netflix"),
-      "tv-prime": $("#tv-prime"),
-    },
+    grids,
     detailModal: $("#detailModal"),
     detailClose: $("#detailClose"),
     detailPoster: $("#detailPoster"),
@@ -162,10 +166,11 @@
       return;
     }
 
-    renderItems(els.grids["movie-netflix"], data.movie.netflix, "movie");
-    renderItems(els.grids["movie-prime"], data.movie.prime, "movie");
-    renderItems(els.grids["tv-netflix"], data.tv.netflix, "tv");
-    renderItems(els.grids["tv-prime"], data.tv.prime, "tv");
+    MEDIA_TYPES.forEach((mediaType) => {
+      PLATFORMS.forEach((platform) => {
+        renderItems(els.grids[`${mediaType}-${platform}`], data[mediaType][platform] || [], mediaType);
+      });
+    });
 
     if (data.generatedAt) {
       els.updatedAt.textContent = `Laatst bijgewerkt: ${formatUpdatedAt(data.generatedAt)} · ${els.updatedAtBase}`;
@@ -191,8 +196,9 @@
   function applyPlatformFilter(platform) {
     els.columns.forEach((columns) => {
       columns.classList.toggle("single-col", platform !== "all");
-      columns.querySelector(".col-netflix").classList.toggle("platform-hidden", platform === "prime");
-      columns.querySelector(".col-prime").classList.toggle("platform-hidden", platform === "netflix");
+      columns.querySelectorAll(".col").forEach((col) => {
+        col.classList.toggle("platform-hidden", platform !== "all" && col.dataset.platform !== platform);
+      });
     });
   }
 
