@@ -5,10 +5,16 @@ const LANGUAGE = "nl-NL";
 const MAX_PAGES = 2;
 const TV_CANDIDATE_PAGES = 3;
 const RESULT_CAP = 40;
-// Amazon Prime Video is id 9 in some TMDB regions, but 119 in NL
-// (confirmed via GET /3/watch/providers/movie?watch_region=NL) — id 9
-// isn't linked to NL at all, which silently returned zero results.
-const PROVIDERS = { netflix: 8, prime: 119 };
+// Provider IDs confirmed per-region via GET /3/watch/providers/movie?watch_region=NL
+// rather than guessed — TMDB's IDs for the same service can differ by region
+// (Amazon Prime Video is id 9 elsewhere, but 119 in NL; id 9 isn't linked to NL
+// at all, which silently returned zero results before this was caught).
+const PROVIDERS = {
+  netflix: { id: 8, label: "Netflix" },
+  prime: { id: 119, label: "Prime Video" },
+  hbomax: { id: 1899, label: "HBO Max" },
+  skyshowtime: { id: 1773, label: "SkyShowtime" },
+};
 const API_KEY = process.env.TMDB_API_KEY;
 
 if (!API_KEY) {
@@ -115,46 +121,37 @@ async function fetchTv(providerId, today) {
     .slice(0, RESULT_CAP);
 }
 
-async function logProviderDiagnostics() {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/watch/providers/movie?api_key=${API_KEY}&language=${LANGUAGE}&watch_region=${REGION}`
-  );
-  if (!res.ok) {
-    console.log(`DIAGNOSTIC: provider list request failed: ${res.status}`);
-    return;
-  }
-  const data = await res.json();
-  const matches = (data.results || []).filter((p) => /hbo|sky/i.test(p.provider_name));
-  console.log(`DIAGNOSTIC: watch providers for ${REGION} matching hbo/sky:`);
-  for (const p of matches) {
-    console.log(`  id=${p.provider_id} name="${p.provider_name}"`);
-  }
-}
-
 async function main() {
   const today = todayISO();
+  const platformKeys = Object.keys(PROVIDERS);
 
-  await logProviderDiagnostics();
+  const movieResults = await Promise.all(
+    platformKeys.map((key) => fetchMovies(PROVIDERS[key].id, today))
+  );
+  const tvResults = await Promise.all(
+    platformKeys.map((key) => fetchTv(PROVIDERS[key].id, today))
+  );
 
-  const [movieNetflix, moviePrime, tvNetflix, tvPrime] = await Promise.all([
-    fetchMovies(PROVIDERS.netflix, today),
-    fetchMovies(PROVIDERS.prime, today),
-    fetchTv(PROVIDERS.netflix, today),
-    fetchTv(PROVIDERS.prime, today),
-  ]);
+  const movie = {};
+  const tv = {};
+  platformKeys.forEach((key, i) => {
+    movie[key] = movieResults[i];
+    tv[key] = tvResults[i];
+  });
 
   const output = {
     generatedAt: new Date().toISOString(),
     region: REGION,
-    movie: { netflix: movieNetflix, prime: moviePrime },
-    tv: { netflix: tvNetflix, prime: tvPrime },
+    movie,
+    tv,
   };
 
   await mkdir("assets/data", { recursive: true });
   await writeFile("assets/data/releases.json", JSON.stringify(output, null, 2));
   console.log(`Wrote assets/data/releases.json (as of ${today}):`);
-  console.log(`  movie/netflix: ${movieNetflix.length}, movie/prime: ${moviePrime.length}`);
-  console.log(`  tv/netflix: ${tvNetflix.length}, tv/prime: ${tvPrime.length}`);
+  platformKeys.forEach((key) => {
+    console.log(`  ${key}: movie=${movie[key].length}, tv=${tv[key].length}`);
+  });
 }
 
 main().catch((err) => {

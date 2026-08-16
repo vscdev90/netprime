@@ -1,13 +1,13 @@
 # NetPrime
 
-Statische web-app die laat zien wat er momenteel op Netflix en Prime Video staat, gesorteerd op releasedatum (nieuwste eerst). Films en series staan gescheiden, en per categorie zijn Netflix en Prime Video apart weergegeven. Klik op een titel voor een popup met poster, releasedatum, rating en synopsis.
+Statische web-app die laat zien wat er momenteel op Netflix, Prime Video, HBO Max en SkyShowtime staat, gesorteerd op releasedatum (nieuwste eerst). Films en series staan gescheiden, elk platform heeft een eigen kolom, en met de filterknoppen kun je naar één platform inzoomen. Klik op een titel voor een popup met poster, releasedatum, rating en synopsis.
 
 Live op GitHub Pages: `https://<gebruikersnaam>.github.io/<repo>/`
 
 ## Hoe het werkt
 
 - De browser laadt alleen statische bestanden (HTML/CSS/JS + een gegenereerd JSON-bestand) — geen API-key of andere geheimen komen ooit in de browser terecht.
-- Databron: de gratis [TMDB API](https://www.themoviedb.org/documentation/api) (`discover/movie` en `discover/tv`, gefilterd op actuele Netflix/Prime Video beschikbaarheid in regio NL, gesorteerd op releasedatum aflopend).
+- Databron: de gratis [TMDB API](https://www.themoviedb.org/documentation/api) (`discover/movie` en `discover/tv`, gefilterd op actuele beschikbaarheid per platform in regio NL, gesorteerd op releasedatum aflopend). Platform-IDs staan in `scripts/fetch-releases.mjs` en zijn per regio geverifieerd via `GET /3/watch/providers/movie?watch_region=NL` — TMDB's ID voor dezelfde dienst kan namelijk per regio verschillen (Prime Video is bijvoorbeeld 119 in NL, niet het vaker genoemde 9).
 - Bij elke deploy haalt een GitHub Actions workflow (`scripts/fetch-releases.mjs`) deze data server-side op met een TMDB API key uit een **repository secret**, en schrijft het resultaat naar `assets/data/releases.json`. Dat bestand wordt vervolgens gepubliceerd naar GitHub Pages — de key zelf verlaat de Actions-runner nooit.
 - De workflow draait automatisch bij elke push naar `main`, dagelijks om 05:00 UTC (cron), en is ook handmatig te starten via **Actions → Deploy GitHub Pages → Run workflow**.
 
@@ -27,6 +27,12 @@ TMDB registreert geen exacte "toegevoegd aan Netflix/Prime"-datum, en de app kan
 - **Nieuwe seizoenen van bestaande series verschijnen mogelijk niet** bovenaan (of helemaal niet), omdat TMDB voor series alleen de premièredatum van het allereerste seizoen bijhoudt, niet per seizoen.
 
 Eerdere pogingen (venster van 7 dagen vooruit, of gefilterd op de huidige kalendermaand) bleken in de praktijk vaak leeg — vooral voor Prime Video, waarvan de meeste content al langer bestaat en pas recent is toegevoegd. Sorteren zonder datumfilter levert betrouwbaar bruikbare resultaten op.
+
+### Nieuw platform toevoegen
+
+1. Zoek het juiste `provider_id` op voor de gewenste regio — **niet** een ID van een ander land aannemen. Voeg tijdelijk een `console.log` toe die `GET /3/watch/providers/movie?watch_region=NL` opvraagt en filtert op de naam van de dienst, draai de workflow, en lees het echte ID uit de Actions-logs.
+2. Voeg een entry toe aan de `PROVIDERS`-object in `scripts/fetch-releases.mjs`.
+3. Voeg een knop toe aan `.platform-filter` en een kolom (met bijpassend `data-platform`-attribuut) per tab in `index.html`, plus een kleur in `assets/style.css`.
 
 ## Lokaal draaien
 
