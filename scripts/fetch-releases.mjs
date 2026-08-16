@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 const REGION = "NL";
 const LANGUAGE = "nl-NL";
-const MAX_PAGES = 3;
+const MAX_PAGES = 2;
 const PROVIDERS = { netflix: 8, prime: 9 };
 const API_KEY = process.env.TMDB_API_KEY;
 
@@ -11,14 +11,11 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-function monthRange() {
-  const now = new Date();
-  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-async function fetchCategory(mediaType, providerId, from, to) {
+async function fetchCategory(mediaType, providerId, today) {
   const queryDateField = mediaType === "movie" ? "primary_release_date" : "first_air_date";
   const itemDateField = mediaType === "movie" ? "release_date" : "first_air_date";
 
@@ -34,8 +31,7 @@ async function fetchCategory(mediaType, providerId, from, to) {
       sort_by: `${queryDateField}.desc`,
       include_adult: "false",
       page: String(page),
-      [`${queryDateField}.gte`]: from,
-      [`${queryDateField}.lte`]: to,
+      [`${queryDateField}.lte`]: today,
     });
     const res = await fetch(`https://api.themoviedb.org/3/discover/${mediaType}?${params.toString()}`);
     if (!res.ok) {
@@ -60,26 +56,25 @@ async function fetchCategory(mediaType, providerId, from, to) {
 }
 
 async function main() {
-  const { from, to } = monthRange();
+  const today = todayISO();
 
   const [movieNetflix, moviePrime, tvNetflix, tvPrime] = await Promise.all([
-    fetchCategory("movie", PROVIDERS.netflix, from, to),
-    fetchCategory("movie", PROVIDERS.prime, from, to),
-    fetchCategory("tv", PROVIDERS.netflix, from, to),
-    fetchCategory("tv", PROVIDERS.prime, from, to),
+    fetchCategory("movie", PROVIDERS.netflix, today),
+    fetchCategory("movie", PROVIDERS.prime, today),
+    fetchCategory("tv", PROVIDERS.netflix, today),
+    fetchCategory("tv", PROVIDERS.prime, today),
   ]);
 
   const output = {
     generatedAt: new Date().toISOString(),
     region: REGION,
-    range: { from, to },
     movie: { netflix: movieNetflix, prime: moviePrime },
     tv: { netflix: tvNetflix, prime: tvPrime },
   };
 
   await mkdir("assets/data", { recursive: true });
   await writeFile("assets/data/releases.json", JSON.stringify(output, null, 2));
-  console.log(`Wrote assets/data/releases.json (range ${from} to ${to}):`);
+  console.log(`Wrote assets/data/releases.json (as of ${today}):`);
   console.log(`  movie/netflix: ${movieNetflix.length}, movie/prime: ${moviePrime.length}`);
   console.log(`  tv/netflix: ${tvNetflix.length}, tv/prime: ${tvPrime.length}`);
 }
