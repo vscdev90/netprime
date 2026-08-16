@@ -56,7 +56,7 @@ function releaseSlot() {
   }
 }
 
-async function tmdbFetch(url, retries = 5) {
+async function throttledFetch(url, retries = 5) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     await acquireSlot();
     try {
@@ -71,7 +71,7 @@ async function tmdbFetch(url, retries = 5) {
       releaseSlot();
     }
   }
-  throw new Error(`TMDB request rate-limited after ${retries} retries: ${url}`);
+  throw new Error(`Request rate-limited after ${retries} retries: ${url}`);
 }
 
 function toItem(item, mediaType, date) {
@@ -107,6 +107,25 @@ async function saveTrailerCache() {
   await writeFile(CACHE_PATH, JSON.stringify(trailerCache));
 }
 
+// TMDB's video listing includes entries that don't actually play — removed,
+// private, or plain mismatched videos (a real-world example: TMDB's only
+// "trailer" for a stand-up special turned out not to correspond to a real
+// published trailer at all). YouTube's oEmbed endpoint reports whether a
+// video genuinely exists and can be embedded without needing an API key;
+// it 404s/401s for deleted, private, or embedding-disabled videos. Checking
+// this at build time means a broken match just gets skipped (falls through
+// to the next candidate, or no trailer at all) instead of showing a button
+// that fails for every visitor who clicks it.
+async function isEmbeddable(key) {
+  try {
+    const url = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${key}`)}&format=json`;
+    const res = await throttledFetch(url);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Trailers are almost always only tagged as English on TMDB even for
 // non-English titles, so this deliberately doesn't pass a language
 // filter — doing so would silently return zero results most of the time.
@@ -114,20 +133,29 @@ async function fetchTrailerKey(mediaType, id) {
   const cacheKey = `${mediaType}:${id}`;
   if (cacheKey in trailerCache) return trailerCache[cacheKey];
 
-  const res = await tmdbFetch(`https://api.themoviedb.org/3/${mediaType}/${id}/videos?api_key=${API_KEY}`);
+  const res = await throttledFetch(`https://api.themoviedb.org/3/${mediaType}/${id}/videos?api_key=${API_KEY}`);
   if (!res.ok) return null;
   const data = await res.json();
   const videos = (data.results || []).filter((v) => v.site === "YouTube");
-  const pick =
-    videos.find((v) => v.type === "Trailer" && v.official) ||
-    videos.find((v) => v.type === "Trailer") ||
-    videos.find((v) => v.type === "Teaser") ||
-    videos[0];
-  const key = pick ? pick.key : null;
-  // Only cache a hit — a title without a trailer yet might get one added
-  // later (e.g. an upcoming release), so keep retrying those.
-  if (key) trailerCache[cacheKey] = key;
-  return key;
+
+  const officialTrailers = videos.filter((v) => v.type === "Trailer" && v.official);
+  const otherTrailers = videos.filter((v) => v.type === "Trailer" && !v.official);
+  const teasers = videos.filter((v) => v.type === "Teaser");
+  const picked = new Set([...officialTrailers, ...otherTrailers, ...teasers]);
+  const rest = videos.filter((v) => !picked.has(v));
+  const candidates = [...officialTrailers, ...otherTrailers, ...teasers, ...rest];
+
+  for (const candidate of candidates) {
+    if (await isEmbeddable(candidate.key)) {
+      // Only cache a confirmed-working hit — a title without one yet might
+      // get a real trailer added later (e.g. an upcoming release), or a
+      // currently-broken match might get corrected on TMDB's side, so keep
+      // retrying those instead of caching a permanent "no trailer".
+      trailerCache[cacheKey] = candidate.key;
+      return candidate.key;
+    }
+  }
+  return null;
 }
 
 async function enrichWithTrailers(items, mediaType) {
@@ -151,7 +179,7 @@ async function fetchMovies(providerId, today) {
       page: String(page),
       "primary_release_date.lte": today,
     });
-    const res = await tmdbFetch(`https://api.themoviedb.org/3/discover/movie?${params.toString()}`);
+    const res = await throttledFetch(`https://api.themoviedb.org/3/discover/movie?${params.toString()}`);
     if (!res.ok) {
       throw new Error(`TMDB request failed (movie, provider ${providerId}, page ${page}): ${res.status} ${await res.text()}`);
     }
@@ -175,7 +203,7 @@ async function fetchMovies(providerId, today) {
 // by the actual newest content, fetch each candidate's season list and
 // use the most recent already-aired season date instead.
 async function fetchLatestSeasonDate(tvId, today) {
-  const res = await tmdbFetch(`https://api.themoviedb.org/3/tv/${tvId}?api_key=${API_KEY}&language=${LANGUAGE}`);
+  const res = await throttledFetch(`https://api.themoviedb.org/3/tv/${tvId}?api_key=${API_KEY}&language=${LANGUAGE}`);
   if (!res.ok) return null;
   const data = await res.json();
   const dates = (data.seasons || [])
@@ -199,7 +227,7 @@ async function fetchTv(providerId, today) {
       page: String(page),
       "first_air_date.lte": today,
     });
-    const res = await tmdbFetch(`https://api.themoviedb.org/3/discover/tv?${params.toString()}`);
+    const res = await throttledFetch(`https://api.themoviedb.org/3/discover/tv?${params.toString()}`);
     if (!res.ok) {
       throw new Error(`TMDB request failed (tv, provider ${providerId}, page ${page}): ${res.status} ${await res.text()}`);
     }
