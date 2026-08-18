@@ -37,6 +37,14 @@
     <button class="platform-btn" data-platform="hbomax">HBO Max</button>
     <button class="platform-btn" data-platform="skyshowtime">SkyShowtime</button>
   </nav>
+  <div class="search-bar">
+    <div class="search-field">
+      <span class="search-icon" aria-hidden="true">🔍</span>
+      <input type="search" id="searchInput" placeholder="Zoek een film of serie…" autocomplete="off" spellcheck="false" aria-label="Zoek een film of serie">
+      <button id="searchClear" class="search-clear" type="button" aria-label="Zoekopdracht wissen" hidden>✕</button>
+    </div>
+    <p id="searchSummary" class="search-summary" role="status" hidden></p>
+  </div>
 </header>
 
 <main id="app">

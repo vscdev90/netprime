@@ -156,6 +156,78 @@ a { color: var(--accent); }
   border-color: var(--accent);
 }
 
+.search-bar {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 12px;
+}
+
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 13px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.search-field input {
+  width: 100%;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 14px;
+  padding: 9px 38px 9px 36px;
+  transition: border-color 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.search-field input::placeholder { color: var(--text-dim); }
+
+/* Suppress the native clear affordance so it doesn't sit next to ours. */
+.search-field input::-webkit-search-cancel-button,
+.search-field input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-clear {
+  position: absolute;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+.search-clear:hover { color: var(--text); }
+
+.search-summary {
+  margin: 8px 2px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
 #app {
   max-width: 1200px;
   margin: 0 auto;
