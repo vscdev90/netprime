@@ -41,7 +41,20 @@
     detailMeta: $("#detailMeta"),
     detailOverview: $("#detailOverview"),
     detailLink: $("#detailLink"),
+    searchInput: $("#searchInput"),
+    searchClear: $("#searchClear"),
+    searchSummary: $("#searchSummary"),
   };
+
+  // Kept so search can re-render from memory instead of refetching.
+  let currentData = null;
+  let currentQuery = "";
+  let currentPlatform = "all";
+
+  // Fold case and strip diacritics so "amelie" finds "Amélie".
+  function normalize(text) {
+    return (text || "").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  }
 
   function formatBadgeDate(isoDate) {
     const d = new Date(isoDate + "T00:00:00Z");
@@ -201,9 +214,12 @@
     container.innerHTML = `<p class="state-msg${isError ? " error" : ""}">${message}</p>`;
   }
 
-  function renderItems(container, items, mediaType) {
+  function renderItems(container, items, mediaType, isSearching = false) {
     if (!items.length) {
-      renderState(container, "Geen titels gevonden voor dit platform.");
+      renderState(
+        container,
+        isSearching ? "Geen resultaten in deze categorie." : "Geen titels gevonden voor dit platform."
+      );
       return;
     }
     container.innerHTML = "";
@@ -258,6 +274,51 @@
     container.appendChild(frag);
   }
 
+  // Counts only cover platforms the visitor can currently see, so the summary
+  // never promises results that a platform filter is hiding.
+  function updateSearchSummary(counts) {
+    const query = currentQuery.trim();
+    els.searchClear.hidden = !query;
+
+    if (!query) {
+      els.searchSummary.hidden = true;
+      return;
+    }
+
+    els.searchSummary.hidden = false;
+    const total = counts.movie + counts.tv;
+    if (!total) {
+      els.searchSummary.textContent = `Geen resultaten voor "${query}".`;
+      return;
+    }
+
+    const parts = [];
+    if (counts.movie) parts.push(`${counts.movie} ${counts.movie === 1 ? "film" : "films"}`);
+    if (counts.tv) parts.push(`${counts.tv} ${counts.tv === 1 ? "serie" : "series"}`);
+    els.searchSummary.textContent =
+      `${total} ${total === 1 ? "resultaat" : "resultaten"} voor "${query}" · ${parts.join(" · ")}`;
+  }
+
+  function renderGrids() {
+    if (!currentData) return;
+
+    const query = normalize(currentQuery.trim());
+    const counts = { movie: 0, tv: 0 };
+
+    MEDIA_TYPES.forEach((mediaType) => {
+      PLATFORMS.forEach((platform) => {
+        const all = currentData[mediaType][platform] || [];
+        const items = query ? all.filter((item) => normalize(item.title).includes(query)) : all;
+        if (currentPlatform === "all" || currentPlatform === platform) {
+          counts[mediaType] += items.length;
+        }
+        renderItems(els.grids[`${mediaType}-${platform}`], items, mediaType, Boolean(query));
+      });
+    });
+
+    updateSearchSummary(counts);
+  }
+
   async function loadAll() {
     Object.values(els.grids).forEach((container) => renderSkeleton(container));
 
@@ -272,11 +333,8 @@
       return;
     }
 
-    MEDIA_TYPES.forEach((mediaType) => {
-      PLATFORMS.forEach((platform) => {
-        renderItems(els.grids[`${mediaType}-${platform}`], data[mediaType][platform] || [], mediaType);
-      });
-    });
+    currentData = data;
+    renderGrids();
 
     if (data.generatedAt) {
       els.updatedAt.textContent = `Laatst bijgewerkt: ${formatUpdatedAt(data.generatedAt)} · ${els.updatedAtBase}`;
@@ -300,12 +358,15 @@
   }
 
   function applyPlatformFilter(platform) {
+    currentPlatform = platform;
     els.columns.forEach((columns) => {
       columns.classList.toggle("single-col", platform !== "all");
       columns.querySelectorAll(".col").forEach((col) => {
         col.classList.toggle("platform-hidden", platform !== "all" && col.dataset.platform !== platform);
       });
     });
+    // Result counts are scoped to the visible platforms, so they change too.
+    renderGrids();
   }
 
   function setupPlatformFilter() {
@@ -316,6 +377,27 @@
         applyPlatformFilter(btn.dataset.platform);
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
+    });
+  }
+
+  function setSearchQuery(query) {
+    currentQuery = query;
+    if (els.searchInput.value !== query) els.searchInput.value = query;
+    renderGrids();
+  }
+
+  function setupSearch() {
+    els.searchInput.addEventListener("input", () => setSearchQuery(els.searchInput.value));
+    els.searchClear.addEventListener("click", () => {
+      setSearchQuery("");
+      els.searchInput.focus();
+    });
+    els.searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && els.searchInput.value) {
+        // Stop this reaching the modal's Escape handler.
+        e.stopPropagation();
+        setSearchQuery("");
+      }
     });
   }
 
@@ -333,5 +415,6 @@
   setupRefresh();
   setupDetailModal();
   setupPlatformFilter();
+  setupSearch();
   loadAll();
 })();
