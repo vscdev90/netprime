@@ -15,6 +15,7 @@ const REGION = "NL";
 const LANGUAGE = "nl-NL";
 const MAX_PAGES = 2;
 const TV_CANDIDATE_PAGES = 3;
+const TV_NEWEST_PAGES = 2;
 const RESULT_CAP = 40;
 // Provider IDs confirmed per-region via GET /3/watch/providers/movie?watch_region=NL
 // rather than guessed — TMDB's IDs for the same service can differ by region
@@ -235,28 +236,46 @@ async function fetchLatestSeasonDate(tvId, today) {
   return dates.sort().at(-1);
 }
 
-async function fetchTv(providerId, today) {
-  let candidates = [];
-  for (let page = 1; page <= TV_CANDIDATE_PAGES; page++) {
+async function fetchTvCandidates(providerId, today, sortBy, pages) {
+  let results = [];
+  for (let page = 1; page <= pages; page++) {
     const params = new URLSearchParams({
       api_key: API_KEY,
       language: LANGUAGE,
       watch_region: REGION,
       with_watch_providers: String(providerId),
       with_watch_monetization_types: "flatrate|ads",
-      sort_by: "popularity.desc",
+      sort_by: sortBy,
       include_adult: "false",
       page: String(page),
       "first_air_date.lte": today,
     });
     const res = await throttledFetch(`https://api.themoviedb.org/3/discover/tv?${params.toString()}`);
     if (!res.ok) {
-      throw new Error(`TMDB request failed (tv, provider ${providerId}, page ${page}): ${res.status} ${await res.text()}`);
+      throw new Error(`TMDB request failed (tv, provider ${providerId}, sort ${sortBy}, page ${page}): ${res.status} ${await res.text()}`);
     }
     const data = await res.json();
-    candidates = candidates.concat(data.results || []);
+    results = results.concat(data.results || []);
     if (page >= (data.total_pages || 1)) break;
   }
+  return results;
+}
+
+async function fetchTv(providerId, today) {
+  // Candidates come from two different sort orders because neither alone is
+  // sufficient, and discover/tv can't sort by "newest season" directly:
+  //   - popularity.desc surfaces currently-relevant shows, including
+  //     returning ones whose new season is what's actually new (Reacher S4
+  //     sorts as 2022 by date, so only popularity finds it).
+  //   - first_air_date.desc surfaces brand-new shows, which a popularity
+  //     ranking misses entirely until they build an audience — a freshly
+  //     launched series simply isn't in the popularity top 60 yet.
+  const [byPopularity, byNewest] = await Promise.all([
+    fetchTvCandidates(providerId, today, "popularity.desc", TV_CANDIDATE_PAGES),
+    fetchTvCandidates(providerId, today, "first_air_date.desc", TV_NEWEST_PAGES),
+  ]);
+
+  const candidates = [...new Map([...byPopularity, ...byNewest].map((i) => [i.id, i])).values()];
 
   const withDates = await Promise.all(
     candidates.map(async (item) => {
