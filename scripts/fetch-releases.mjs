@@ -16,6 +16,8 @@ const LANGUAGE = "nl-NL";
 const MAX_PAGES = 2;
 const TV_CANDIDATE_PAGES = 3;
 const TV_NEWEST_PAGES = 2;
+const RECENT_SWEEP_PAGES = 5;
+const RECENT_SWEEP_DAYS = 45;
 const RESULT_CAP = 40;
 // Provider IDs confirmed per-region via GET /3/watch/providers/movie?watch_region=NL
 // rather than guessed — TMDB's IDs for the same service can differ by region
@@ -261,7 +263,66 @@ async function fetchTvCandidates(providerId, today, sortBy, pages) {
   return results;
 }
 
-async function fetchTv(providerId, today) {
+// Which of our platforms TMDB lists a title on in our region, taken from the
+// title's own watch/providers endpoint. This is authoritative in a way that
+// discover's with_watch_providers filter is not — see fetchRecentPremieres.
+async function platformsFor(mediaType, id) {
+  const res = await throttledFetch(
+    `https://api.themoviedb.org/3/${mediaType}/${id}/watch/providers?api_key=${API_KEY}`
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  const region = (data.results || {})[REGION];
+  if (!region) return [];
+  const streaming = [...(region.flatrate || []), ...(region.ads || [])];
+  const ids = new Set(streaming.map((p) => p.provider_id));
+  return Object.entries(PROVIDERS)
+    .filter(([, provider]) => ids.has(provider.id))
+    .map(([key]) => key);
+}
+
+// discover's with_watch_providers index lags behind the per-title provider
+// data: Lanterns premiered 2026-08-16 and TMDB listed it on HBO Max NL, yet
+// a provider-filtered discover query didn't return it at all, on any sort or
+// page — so no amount of paging through those queries would have found it.
+//
+// This sweeps recent premieres WITHOUT a provider filter and then asks each
+// title directly which platforms it's on, which catches brand-new titles the
+// provider index hasn't picked up yet. One sweep serves all four platforms.
+async function fetchRecentPremieres(today) {
+  const since = new Date(Date.now() - RECENT_SWEEP_DAYS * 86400000).toISOString().slice(0, 10);
+  let results = [];
+  for (let page = 1; page <= RECENT_SWEEP_PAGES; page++) {
+    const params = new URLSearchParams({
+      api_key: API_KEY,
+      language: LANGUAGE,
+      sort_by: "first_air_date.desc",
+      include_adult: "false",
+      page: String(page),
+      "first_air_date.gte": since,
+      "first_air_date.lte": today,
+    });
+    const res = await throttledFetch(`https://api.themoviedb.org/3/discover/tv?${params.toString()}`);
+    if (!res.ok) {
+      throw new Error(`TMDB request failed (tv recent sweep, page ${page}): ${res.status} ${await res.text()}`);
+    }
+    const data = await res.json();
+    results = results.concat(data.results || []);
+    if (page >= (data.total_pages || 1)) break;
+  }
+
+  const resolved = await Promise.all(
+    results.map(async (item) => ({ item, platforms: await platformsFor("tv", item.id) }))
+  );
+
+  const byPlatform = Object.fromEntries(Object.keys(PROVIDERS).map((key) => [key, []]));
+  for (const { item, platforms } of resolved) {
+    for (const key of platforms) byPlatform[key].push(item);
+  }
+  return byPlatform;
+}
+
+async function fetchTv(providerId, today, extraCandidates = []) {
   // Candidates come from two different sort orders because neither alone is
   // sufficient, and discover/tv can't sort by "newest season" directly:
   //   - popularity.desc surfaces currently-relevant shows, including
@@ -270,12 +331,16 @@ async function fetchTv(providerId, today) {
   //   - first_air_date.desc surfaces brand-new shows, which a popularity
   //     ranking misses entirely until they build an audience — a freshly
   //     launched series simply isn't in the popularity top 60 yet.
+  // extraCandidates then covers titles missing from the provider index
+  // altogether, which neither sort can reach.
   const [byPopularity, byNewest] = await Promise.all([
     fetchTvCandidates(providerId, today, "popularity.desc", TV_CANDIDATE_PAGES),
     fetchTvCandidates(providerId, today, "first_air_date.desc", TV_NEWEST_PAGES),
   ]);
 
-  const candidates = [...new Map([...byPopularity, ...byNewest].map((i) => [i.id, i])).values()];
+  const candidates = [
+    ...new Map([...byPopularity, ...byNewest, ...extraCandidates].map((i) => [i.id, i])).values(),
+  ];
 
   const withDates = await Promise.all(
     candidates.map(async (item) => {
@@ -300,11 +365,18 @@ async function main() {
   await loadTrailerCache();
   const cachedCountBefore = Object.keys(trailerCache).length;
 
+  // Run the sweep once and share it, rather than per platform.
+  const recentByPlatform = await fetchRecentPremieres(today);
+  platformKeys.forEach((key) => {
+    const found = recentByPlatform[key].length;
+    if (found) console.log(`Recent-premiere sweep added ${found} candidate(s) for ${key}.`);
+  });
+
   const movieResults = await Promise.all(
     platformKeys.map((key) => fetchMovies(PROVIDERS[key].id, today))
   );
   const tvResults = await Promise.all(
-    platformKeys.map((key) => fetchTv(PROVIDERS[key].id, today))
+    platformKeys.map((key) => fetchTv(PROVIDERS[key].id, today, recentByPlatform[key]))
   );
 
   await saveTrailerCache();
