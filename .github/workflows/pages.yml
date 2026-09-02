@@ -40,6 +40,15 @@ jobs:
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: node scripts/fetch-releases.mjs
+      # TEMPORARY, round 2: user says TMDB's own site shows "The Runner"
+      # (id=1386315); dump every region's watch-provider data for it to see
+      # whether Prime Video shows up anywhere and whether NL has appeared
+      # since the last check. Remove once the cause is known.
+      - name: Diagnose missing title
+        continue-on-error: true
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: node scripts/diagnose-title.mjs 1386315
       - name: Save TMDB trailer cache
         uses: actions/cache/save@v4
         with:
