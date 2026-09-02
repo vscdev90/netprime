@@ -65,13 +65,18 @@ async function diagnoseMediaType(mediaType) {
   // TMDB's search ranks by relevance/popularity, not exact-title match, so
   // the top hit for "The Runner" was "The Maze Runner" (an unrelated,
   // more popular title) rather than either film actually named "The
-  // Runner". Prefer an exact (case-insensitive) title match when one exists.
+  // Runner". Inspect every exact (case-insensitive) title match, since more
+  // than one can exist (a 2015 film and one releasing 2026-09-17, here) and
+  // any of them could be the one the user actually means.
   const exact = hits.filter((h) => name(mediaType, h).toLowerCase() === query.toLowerCase());
-  const show = exact[0] || hits[0];
-  if (exact.length > 1) {
-    console.log(`\n${exact.length} exact title matches found; inspecting the first (id=${show.id}). Others: ${exact.slice(1).map((h) => `id=${h.id} ${dateKey}=${h[dateKey] || "(none)"}`).join(", ")}`);
+  const candidates = exact.length ? exact : [hits[0]];
+  for (const show of candidates) {
+    await inspect(mediaType, dateKey, show);
   }
-  console.log(`\nInspecting ${exact.length ? "exact" : "top"} hit: id=${show.id} "${name(mediaType, show)}"`);
+}
+
+async function inspect(mediaType, dateKey, show) {
+  console.log(`\nInspecting hit: id=${show.id} "${name(mediaType, show)}"`);
   console.log(`  ${dateKey}: ${show[dateKey] || "(none)"}`);
   if (!show[dateKey]) {
     console.log(`  !! No ${dateKey} -> excluded by our ${dateKey}.lte filter`);
